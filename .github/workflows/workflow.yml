@@ -1,6 +1,9 @@
 name: FastAPI Book Project CI/CD
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -23,22 +26,21 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run Tests with pytest
-        run: pytest --maxfail=1 --disable-warnings --tb=short
+        run: |
+          pytest tests/ --maxfail=1 --disable-warnings --tb=short
 
   deploy:
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_KEY }}
-          script: |
-            cd /var/www/fastapi-app
-            git pull origin main
-            source venv/bin/activate
-            pip install -r requirements.txt
-            systemctl restart fastapi
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service ${{ secrets.RAILWAY_SERVICE_NAME }}

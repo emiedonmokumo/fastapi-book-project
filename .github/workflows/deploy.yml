@@ -13,14 +13,28 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
-      - name: SSH into AWS and Deploy
+      - name: Set up SSH and Deploy
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.AWS_SERVER_IP }}
           username: ${{ secrets.AWS_SERVER_USER }}
           key: ${{ secrets.AWS_SSH_KEY }}
           script: |
+            set -e  # Exit on any error
+            echo "Adding GitHub to known hosts..."
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
+            
+            echo "Navigating to project directory..."
             cd fastapi-book-project  # Change this to your actual path
-            git pull origin main
+            
+            echo "Fetching latest changes..."
+            git fetch origin main
+            git reset --hard origin/main  # Ensures clean state
+            
+            echo "Stopping running containers..."
             docker-compose down
+            
+            echo "Rebuilding and starting containers..."
             docker-compose up -d --build
+            
+            echo "Deployment complete!"
